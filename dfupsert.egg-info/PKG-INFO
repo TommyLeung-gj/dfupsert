@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: dfupsert
-Version: 0.0.1
+Version: 0.0.2
 Summary: "dfupsert" is a Python package for synchronizing pd.DataFrames with databases using seamless dfupsert (insert or update) operations.
 Author: GuangJun Liang
 Author-email: gaungjun_l@icloud.com
