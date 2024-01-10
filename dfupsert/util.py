@@ -32,7 +32,7 @@ from sqlalchemy import (
     Column,
     Engine,
     Connection,
-    MetaData
+    MetaData, ForeignKeyConstraint
 )
 from sqlalchemy.orm import DeclarativeBase
 
@@ -102,39 +102,11 @@ def get_template(
         """A base class for the templates."""
         __abstract__ = True
 
-    # Add primary keys to the abstract table.
-    primary_keys = [c.name for c in table.primary_key.columns]
-
-    # Add constraints to the abstract table.
-    constraints = [
-                      c for c in table.constraints
-                      if not isinstance(c, PrimaryKeyConstraint)
-                  ] + [PrimaryKeyConstraint(*primary_keys)]
-
-    # Add columns to the abstract table.
-    for column in table.columns:
-        col = Column(
-            name=column.name,
-            type_=column.type,
-            nullable=column.nullable,
-            default=column.default,
-            server_default=column.server_default,
-            comment=column.comment
-        )
-        setattr(Base, column.name, deepcopy(col))
-
-    # Construct the template.
     class Template(Base):
-        __tablename__ = table.name
-        __table_args__ = (
-            *constraints,
-            *table.indexes,
-            {"schema": table.schema, "extend_existing": True},
-        )
+        __table__ = deepcopy(table)
 
     if is_temp:
         Template = _transform_to_temp_table(Template, driver, table.name)
-
     return driver.get_table(Template)
 
 
@@ -148,4 +120,11 @@ def _transform_to_temp_table(template, driver: Driver, table_name: str) -> Decla
         template.__table__.name = "#" + table_name
     else:
         raise ValueError(f"Unsupported database driver: {driver.name}")
+
+    # temporary table should not have foreign key constraint
+    template.__table__.constraints = [
+        c for c in template.__table__.constraints
+        if not isinstance(c, ForeignKeyConstraint)
+    ]
     return template
+
