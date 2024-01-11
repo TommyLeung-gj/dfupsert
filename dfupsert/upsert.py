@@ -94,17 +94,12 @@ class Upsert:
 
     def _insert_to_temp_table(self, conn: Connection):
         """Insert the DataFrame to the temp table."""
-        schema = None if self.driver.name in ("mysql", "postgresql") else self.temp.schema
-        data_types = {col.name: col.type for col in self.temp.columns}
-        self.df[self.subset].to_sql(
-            self.temp.name,
-            conn,
-            schema=schema,
-            if_exists="append",
-            index=False,
-            chunksize=self.chunksize,
-            dtype=data_types
-        )
+        # schema = None if self.driver.name in ("mysql", "postgresql") else self.temp.schema
+        data = self.df[self.subset]
+        for start in range(0, len(data), self.chunksize):
+            end = min(start + self.chunksize, len(data))
+            chunk_data = data.iloc[start:end].to_dict(orient="records")
+            conn.execute(self.temp.insert(), chunk_data)
         return
 
     def _update_to_target_table(self, conn: Connection):

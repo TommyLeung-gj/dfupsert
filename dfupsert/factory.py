@@ -1,4 +1,3 @@
-
 __all__ = ["UpsertFactory"]
 
 from sqlalchemy import Table, UniqueConstraint, PrimaryKeyConstraint
@@ -40,6 +39,8 @@ WHEN NOT MATCHED THEN
 class BasePattern:
     """Base class for the clauses."""
 
+    QUOTE = '"'
+
     def __init__(
             self,
             table: Table,
@@ -51,7 +52,11 @@ class BasePattern:
         if subset is None:
             subset = [col.name for col in self.table.columns]
         self.subset = subset
-        self.target_table = self.table.schema + "." + self.table.name
+        self.target_table = self.quote(self.table.schema) + "." + self.quote(self.table.name)
+
+    def quote(self, name: str) -> str:
+        """Quote the name."""
+        return self.QUOTE + name + self.QUOTE
 
     def _get_unique_constraints(self, mode="first") -> list:
         """Get the unique constraint of the table."""
@@ -81,12 +86,12 @@ class BasePattern:
     def get_insert_columns_stmt(self, source=False) -> str:
         """Get the insert columns statement."""
         if source:
-            prefix = MSSQL_SOURCE + "."
+            prefix = self.quote(MSSQL_SOURCE) + "."
         else:
             prefix = ""
         return ", ".join(
             [
-                f"{prefix}{col}"
+                f"{prefix}{self.quote(col)}"
                 for col in self.subset
             ]
         )
@@ -97,7 +102,7 @@ class MSSQLUpsert(BasePattern):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.temp_table = self.temp_table.schema + "." + self.temp_table.name
+        self.temp_table = self.quote(self.temp_table.schema) + "." + self.quote(self.temp_table.name)
         self.constraints = self._get_unique_constraints(mode="all")
 
     def get_conflict_stmt(self) -> str:
@@ -105,7 +110,7 @@ class MSSQLUpsert(BasePattern):
         conflict_stmt_units = [
             " AND ".join(
                 [
-                    f"{MSSQL_TARGET}.{col} = {MSSQL_SOURCE}.{col}"
+                    f"{self.quote(MSSQL_TARGET)}.{self.quote(col)} = {self.quote(MSSQL_SOURCE)}.{self.quote(col)}"
                     for col in unique_constraint
                 ]
             ) for unique_constraint in unique_constraints
@@ -116,7 +121,7 @@ class MSSQLUpsert(BasePattern):
         constraint_columns = [col for constraint in self.constraints for col in constraint]
         return ", ".join(
             [
-                f"{MSSQL_TARGET}.{col} = {MSSQL_SOURCE}.{col}"
+                f"{self.quote(MSSQL_TARGET)}.{self.quote(col)} = {self.quote(MSSQL_SOURCE)}.{self.quote(col)}"
                 for col in self.subset
                 if col not in constraint_columns
             ]
@@ -136,16 +141,17 @@ class MSSQLUpsert(BasePattern):
 
 class MySQLUpsert(BasePattern):
     PATTERN = SQLTemplate.mysql
+    QUOTE = '`'
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.temp_table = self.temp_table.name
+        self.temp_table = self.quote(self.temp_table.name)
         self.constraints = self._get_unique_constraints(mode="first")
 
     def get_update_columns_stmt(self) -> str:
         return ',\n\t'.join(
             [
-                f"{col} = VALUES({col})"
+                f"{self.quote(col)} = VALUES({self.quote(col)})"
                 for col in self.subset
             ]
         )
@@ -166,13 +172,13 @@ class PostgreSQLUpsert(BasePattern):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.temp_table = self.temp_table.name
+        self.temp_table = self.quote(self.temp_table.name)
         self.constraints = self._get_unique_constraints(mode="first")
 
     def get_update_columns_stmt(self) -> str:
         return ',\n\t'.join(
             [
-                f"{col} = EXCLUDED.{col}"
+                f"{self.quote(col)} = EXCLUDED.{self.quote(col)}"
                 for col in self.subset
             ]
         )

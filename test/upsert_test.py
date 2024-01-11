@@ -10,38 +10,39 @@ class AbstractTable(DeclarativeBase):
 
 # create a table
 class TestTable(AbstractTable):
-    __tablename__ = "test_table"
+    __tablename__ = "TestTable"
     __table_args__ = (
-        UniqueConstraint("name"),
+        UniqueConstraint("Name"),
         {
             "extend_existing": True,
-            "schema": "test"
+            "schema": "dbo",
         }
     )
 
-    name = Column(String(255), primary_key=True)
-    pwd = Column(String(255))
-    signals = Column(String(100))
+    name = Column("Name", String(255), primary_key=True)
+    pwd = Column("Password", String(255))
+    signals = Column("Signals", String(100))
 
 
 # make a dataframe
 data = {
-    "name": ["aaba", "c", "e"],
-    "pwd": ["131", "3", "4"],
-    "signals": ["a", 'v1', "1154"],
-    "additional": ["a", 'v1', "11234"]
+    "Name": ["aaba", "c", "e"],
+    "Password": ["131", "3", "3"],
+    "Signals": ["abc", 'v1', "121154" * 2],
+    "additional": ["a", 'v1', "1234"]
 }
 df = DataFrame(data)
 
 # create a engine
 engine = create_engine('mysql+pymysql://root:Mysql_1331@192.168.131.3:3306/test', echo=True)
-
+engine = create_engine('postgresql+psycopg2://postgres:1331@192.168.131.3:5432/sync_with_alist', echo=True)
+engine = create_engine("mssql+pymssql://sa:Mssql_1331@192.168.131.3:1433/easyform", echo=True)
 # dfupsert
 with engine.connect() as conn:
     upsert(
         df=df,
         con=conn,
-        table=TestTable,
+        table=TestTable.__table__,
         chunksize=2000
     )
     conn.commit()

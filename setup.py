@@ -8,7 +8,7 @@ with codecs.open(os.path.join(here, "README.md"), encoding="utf-8") as f:
     long_description = "\n" + f.read()
 
 # 定义版本和描述信息
-VERSION = "0.0.3"
+VERSION = "0.0.4"
 DESCRIPTION = '"dfupsert" is a Python package for synchronizing pd.DataFrames with databases using seamless dfupsert (insert or update) operations.'
 LONG_DESCRIPTION = long_description
 
